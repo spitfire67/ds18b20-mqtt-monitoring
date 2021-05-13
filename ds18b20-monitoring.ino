@@ -29,19 +29,19 @@ typedef struct
 #define MQTT_CLIENT_ID "ESP8266-D1mini"
 #define MQTT_TOPIC "PoolTemperature"
 
-// Text
-#define WEB_TITLE Pool - Monitoring
+// Text (Localization)
+#define WEB_TITLE "Pool - Monitoring"
 #define WEB_BUTTON_REFRESH "Refresh"
 #define WEB_BUTTON_BACK "Back"
 #define WEB_BUTTON_SAVE "Save"
-#define WEB_LABEL_DELAY_MESSAGE "Delay between 2 MQTT measurements (in seconds)"
-#define WEB_LABEL_CHANGE_SAVED_MESSAGE "The changes have been saved"
+#define WEB_LABEL_DELAY_MESSAGE "Delay between 2 MQTT measurements (in seconds):"
+#define WEB_LABEL_CHANGE_SAVED_MESSAGE "The changes have been saved."
 
 // Arrays to hold device address
 #define DEVICE_NUMBER 2
 
-DeviceInfo devices[] = {{"Water1", "Water", {0x28, 0x2F, 0xF1, 0x6D, 0x32, 0x20, 0x01, 0xE4}},
-                        {"Air1", "Air", {0x28, 0x2D, 0xDD, 0x64, 0x32, 0x20, 0x01, 0xC0}}};
+DeviceInfo devices[] = {{"Sensor1Water", "Water", {0x28, 0x2F, 0xF1, 0x6D, 0x32, 0x20, 0x01, 0xE4}},
+                        {"Sensor2Air", "Air", {0x28, 0x2D, 0xDD, 0x64, 0x32, 0x20, 0x01, 0xC0}}};
 
 // Setup a oneWire instance to communicate with any OneWire devices
 OneWire oneWire(ONE_WIRE_BUS);
@@ -182,7 +182,7 @@ void getAndPublishTemperatures()
   String json = "[";
   for (int i = 0; i < DEVICE_NUMBER; i++)
   {
-    String tempC = getTemperature(&devices->device[i]);
+    String tempC = getTemperature(devices[i].device);
     String deviceName = String(devices[i].name);
 
     if (i != 0)
@@ -249,14 +249,15 @@ void handle_OnTemperature()
   String json = "[";
   for (int i = 0; i < DEVICE_NUMBER; i++)
   {
-    String tempC = getTemperature(&devices->device[i]);
+    String tempC = getTemperature(devices[i].device);
     String deviceName = String(devices[i].name);
+    String deviceDisplayName = String(devices[i].displayName);
 
     if (i != 0)
     {
       json += ",";
     }
-    json += "{\"device\":\"" + deviceName + "\", \"value\":\"" + String(tempC) + "\"}";
+    json += "{\"device\":\"" + deviceName + "\", \"displayName\":\"" + deviceDisplayName + "\", \"value\":\"" + String(tempC) + "\"}";
   }
 
   json += "]";
@@ -292,7 +293,7 @@ void handle_OnSerial()
   {
     Serial.print("Display for device ");
     Serial.println(i);
-    printTemperature(&devices->device[i]);
+    printTemperature(devices[i].device);
   }
 
   webServer.send(200, "text/html", "OK");
@@ -314,18 +315,18 @@ void printAddress(DeviceAddress deviceAddress)
 String SendHTMLNew(String ip, String delay)
 {
   String ptr = "<!DOCTYPE html><html>\n";
-  ptr += "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n";
-  ptr += "<title>WEB_TITLE</title>\n";
+  ptr += "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" charset=\"UTF-8\">\n";
+  ptr += "<title>" + String(WEB_TITLE) + "</title>\n";
   ptr += "<style>html{font-family: Helvetica, sans-serif;display: inline-block;margin: 0px auto;text-align: center;}\n";
   ptr += "body{margin-top: 50px;color: #444444;}h1{margin: 50px auto 30px;}button{margin-top: 1em;padding: 0.25em 1.5em;}\n";
   ptr += "p{font-size: 24px;margin-bottom: 10px;} #settings{margin: 2em;padding: 2em;border-top: 1px black solid;}</style></head>\n";
   ptr += "<body>\n";
-  ptr += "<div><h1>WEB_TITLE</h1><div id=\"content\"></div>\n";
-  ptr += "<button onclick=\"window.location.reload()\">WEB_BUTTON_REFRESH</button></div>\n";
+  ptr += "<div><h1>" + String(WEB_TITLE) + "</h1><div id=\"content\"></div>\n";
+  ptr += "<button onclick=\"window.location.reload()\">" + String(WEB_BUTTON_REFRESH) + "</button></div>\n";
   ptr += "<div id=\"settings\"><form action=\"update\">\n";
-  ptr += "<label for=\"delay\">WEB_LABEL_DELAY_MESSAGE:</label>\n";
+  ptr += "<label for=\"delay\">" + String(WEB_LABEL_DELAY_MESSAGE) + "</label>\n";
   ptr += "<input id=\"delay\" name=\"delay\" type=\"number\" min=\"1\" max=\"9999\" size=\"4\" pattern=\"[0-9]+\" value=\"" + delay + "\" required /><br />\n";
-  ptr += "<button type=\"submit\">WEB_BUTTON_SAVE</button></form>\n";
+  ptr += "<button type=\"submit\">" + String(WEB_BUTTON_SAVE) + "</button></form>\n";
   ptr += "<script>\n";
   ptr += "function update() {\n";
   ptr += "var xhttp = new XMLHttpRequest();\n";
@@ -335,7 +336,7 @@ String SendHTMLNew(String ip, String delay)
   ptr += "};\n";
   ptr += "function display(payload) {\n";
   ptr += "var out = \"\"; for(var i = 0; i < payload.length; i++) {\n";
-  ptr += "out += '<p>' +  payload[i].device + ': ' + payload[i].value + ' &deg;C</p>';\n";
+  ptr += "out += '<p>' +  payload[i].displayName + ': ' + payload[i].value + ' &deg;C</p>';\n";
   ptr += "}\n";
   ptr += "document.getElementById(\"content\").innerHTML = out;\n";
   ptr += "}\n";
@@ -347,13 +348,13 @@ String SendHTMLNew(String ip, String delay)
 String sendUpdateHtml()
 {
   String ptr = "<!DOCTYPE html><html>\n";
-  ptr += "<head><meta name=\"viewport\" content=\"width=device-width\">\n";
-  ptr += "<title>WEB_TITLE</title>\n";
+  ptr += "<head><meta name=\"viewport\" content=\"width=device-width\" charset=\"UTF-8\">\n";
+  ptr += "<title>" + String(WEB_TITLE) + "</title>\n";
   ptr += "<style>html { font-family: Helvetica, sans-serif; display: inline-block; margin: 5px auto; text-align: center;}\n";
   ptr += "body{margin-top: 2em;color: #444444;}button{margin-top: 1em;}</style>\n";
   ptr += "</head>\n";
-  ptr += "<body><div><span>WEB_LABEL_CHANGE_SAVED_MESSAGE.</span></div>\n";
-  ptr += "<div><button onclick=\"window.location.href = '/';\">WEB_BUTTON_BACK</button></div>\n";
+  ptr += "<body><div><span>" + String(WEB_LABEL_CHANGE_SAVED_MESSAGE) + "</span></div>\n";
+  ptr += "<div><button onclick=\"window.location.href = '/';\">" + String(WEB_BUTTON_BACK) + "</button></div>\n";
   ptr += "</div></body></html>\n";
   return ptr;
 }
@@ -438,10 +439,10 @@ void setup(void)
     Serial.println();
 
     // set the resolution to 9 bit (Each Dallas/Maxim device is capable of several different resolutions)
-    sensors.setResolution(&devices->device[i], 9);
+    sensors.setResolution(devices[i].device, 9);
 
     Serial.print("Device Resolution: ");
-    Serial.print(sensors.getResolution(&devices->device[i]), DEC);
+    Serial.print(sensors.getResolution(devices[i].device), DEC);
     Serial.println();
   }
 
